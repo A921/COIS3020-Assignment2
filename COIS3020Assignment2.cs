@@ -9,15 +9,23 @@ public class COIS3020Assignment2
 {
     public static void Main(string[] args)
     {
+        string testS = "";
+        for (int i = 0; i < 100; i++)
+            testS += (i + ",");
         string s = "abcdefghijklmnopqrstuvwxyz0_abcdefghijklmnopqrstuvwxyz0";
+        Console.WriteLine(s.Length);
         Rope r = new Rope(s);
 
-        Console.WriteLine(r.ToString() + " ");
+//        r.Delete(5,35);
         r.PrintRope(5);
+        
+        r.Insert("YIPPE", 5);
+        r.PrintRope(5);
+        Console.WriteLine(r.ToString() + " ");
         r.Reverse();
         r.PrintRope(5);
-        Console.WriteLine(r.ToString() + " " + r.IndexOf('o') + " " + r.CharAt(27) + " " + r.Length());
-        Console.WriteLine(r.Find("0zyxwvutsrqponmlkjihgfedcba_0zyxwvutsrqponmlkjihgfedcba"));
+        Console.WriteLine(r.ToString() + " " + r.IndexOf('d') + " " + r.CharAt(15) + " " + r.Length());
+        //Console.WriteLine(r.Find("0zyxwvutsrqponmlkjihgfedcba_0zyxwvutsrqponmlkjihgfedcba"));
 
     }
 }
@@ -50,6 +58,11 @@ public class Rope
     // Insert string S at index i
     public void Insert(string s, int i)
     {
+        Node addedSegment = Build(s, 0, s.Length - 1);
+        this.PrintRope(5);
+        Node endSegment = Split(root, i);
+        Node startSegment = Concatenate(root, addedSegment);
+        root = Concatenate(startSegment, endSegment);
 
     }
 
@@ -61,7 +74,10 @@ public class Rope
     //Delete the substring S[i, j]
     public void Delete(int i, int j)
     {
-
+        Node deletedSegment = Split(root, i);
+        this.PrintRope(5);
+        Node endSegment = Split(deletedSegment, j);
+        root = Concatenate(root, endSegment);
     }
 
 
@@ -124,7 +140,7 @@ public class Rope
                                 strIndex = 0;
                                 i = -1;
                             }
-                            Console.WriteLine("Buffer: " + buffer);
+                            //Console.WriteLine("Buffer: " + buffer);
 
                         }
                         s = s.Substring(strIndex);
@@ -144,7 +160,7 @@ public class Rope
                     Find(root.right, ref s);
             }
         }
-        Console.WriteLine(buffer);
+        //Console.WriteLine(buffer);
         return i;
     }
 
@@ -157,17 +173,23 @@ public class Rope
     // Will throw exception if index out of bounds
     public char CharAt(int i)
     {
+
         char c = '\0';
+
+
+        //Throw out of bounds error if given index greater than length of root
+        //Else start recursive check
         if (i > root.length || i < 0)
         {
-            throw new IndexOutOfRangeException("Index out of bounds!");
+            throw new IndexOutOfRangeException("Index out of bounds");
         }
         else
         {
             CharAt(root, i);
         }
 
-
+        //Recursive Supporting method for finding char at index
+        //Uses the length property of each node to traverse down the tree in O(log n) time
         void CharAt(Node root, int i)
         {
 
@@ -288,7 +310,7 @@ public class Rope
 
 
 
-    //Return length of the string
+    //Return length of the string (It is stored at the root)
     public int Length()
     {
         return root.length;
@@ -324,7 +346,7 @@ public class Rope
 
 
     // Print the augmented binary tree of the current rope
-    //Courtesy of Professor Brian Patrick
+    //Courtesy of Professor Brian Patrick from COIS2020
     public void PrintRope(int indent)
     {
         Console.WriteLine("Printing rope:");
@@ -338,6 +360,7 @@ public class Rope
         {
             PrintRope(root.right, indent + 3);
             Console.WriteLine(new String(' ', indent) + root.s + " " + root.length);
+
             PrintRope(root.left, indent + 3);
         }
 
@@ -403,7 +426,9 @@ public class Rope
                 return root;
             }
         }
+
         return root;
+
     }
 
 
@@ -432,15 +457,162 @@ public class Rope
 
 
 
-
     //Split the rope with root p at index i and return the root of the right subtree
+
     private Node Split(Node p, int i)
     {
-        return null;
+        int n = i;
+        bool isRooted = false;
+        Node q = new Node();
+        q.length = 0;
+        if (p != null)
+        {
+            Console.WriteLine("start");
+            p.length = p.length - i;
+            Split(p, i);
+
+
+            //p = Adjust(p);
+
+
+
+        }
+
+        void Split(Node p, int i)
+        {
+            if (p != null)
+            {
+                // Case 1: Internal Node
+                if (p.left != null && p.right != null)
+                {
+                    Console.WriteLine(i);
+                    if (i < p.left.length)
+                    {
+                        q = Concatenate(p.right, q);
+                        p.right = null;
+
+
+
+                        // Re-adjust New tree if necc
+                        if (q.length == q.left.length && q.right.length == 0)
+                        {
+                            q.length = q.left.length;
+                            q = q.left;
+                        }
+                        else if (q.length == q.right.length && q.left.length == 0)
+                        {
+                            q.length = q.right.length;
+                            q = q.right;
+                        }
+                        p.length = p.left.length;
+
+
+                        Split(p.left, i);
+
+                    }
+
+                    //Traverse down right side and reduce index when going down
+                    else
+                    {
+
+                        Split(p.right, i - p.left.length);
+
+                    }
+
+
+                    //Adjust root on way back up
+                    if (p.right == null && p.left != null)
+                    {
+                        p.length = p.left.length;
+                        p.right = p.left.right;
+                        p.left = p.left.left;
+
+                    }
+
+
+                    else if (p.left == null && p.right != null)
+                    {
+                        p.length = p.right.length;
+                        p.left = p.right.left;
+                        p.right = p.right.right;
+                    }
+
+
+                    else if (p.left != null && p.right != null)
+                    {
+                        
+                            p.length = p.left.length + p.right.length;
+                    }
+
+
+
+                }
+                //Case 2: Leaf Node
+                else
+                {
+                    Node tempNode = new Node();
+                    string tempS = p.s.Substring(i);
+                    p.s = p.s.Remove(i);
+                    p.length = p.s.Length;
+                    tempNode.s = tempS;
+                    tempNode.length = tempS.Length;
+                    q = Concatenate(tempNode, q);
+                }
+            }
+
+
+
+
+        }
+
+        return q;
     }
 
 
 
+
+
+
+    //
+    //private Node Split(Node p, int i)
+    //    {
+    //        Node newRoot = p;
+    //        Node q = newRoot;
+    //        Console.WriteLine(i);
+
+
+    //        //Case 1: Internal Node
+    //        if (p.left != null && p.right != null)
+    //        {
+    //            if (i < p.left.length)
+    //            {
+    //                newRoot = Concatenate(p.right, newRoot);
+    //                //newRoot = p.right;
+    //                p.right = null;
+    //                p.length = p.left.length;
+    //                newRoot = Split(p.left, i);
+
+
+    //            }
+    //            else { 
+    //                newRoot = Split(p.right, i - p.left.length);
+    //            }
+
+    //        }
+    //        //Case 2: Leaf Node
+    //        else
+    //        {
+
+    //            Node tempNode = new Node();
+    //            string tempS = p.s.Substring(i);
+    //            p.s.Remove(i);
+    //            p.length = p.s.Length;
+    //            tempNode.s = tempS;
+    //            tempNode.length = tempS.Length;
+    //            newRoot = Concatenate(tempNode, newRoot);
+    //        }
+
+    //        return newRoot;
 
 
 
