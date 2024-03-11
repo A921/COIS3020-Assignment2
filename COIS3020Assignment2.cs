@@ -1,32 +1,70 @@
 ﻿
 
+/* Igor Jardim-Martins 0754341
+ * Prima Morakhia 0753456
+ * COIS3020 Assignment 2: Ropes
+ * 
+ * NOTE: For the optimizations, one is done in split
+ * and the other happens in the rebalance
+ * */
 using System;
-using System.Data.SqlTypes;
-using System.Reflection;
-using static System.Net.Mime.MediaTypeNames;
+
 
 public class COIS3020Assignment2
 {
     public static void Main(string[] args)
     {
-        string testS = "";
-        for (int i = 0; i < 100; i++)
-            testS += (i + ",");
-        string s = "abcdefghijklmnopqrstuvwxyz0_abcdefghijklmnopqrstuvwxyz0";
-        Console.WriteLine(s.Length);
-        Rope r = new Rope(s);
 
-//        r.Delete(5,35);
+
+        // TEST CONSTRUCTOR
+        Console.WriteLine("\n\n\nConstructor test:");
+        string s = "abcdefghijklmnopqrstuvwxyz0123456789";
+        Console.WriteLine(s);
+        Rope r = new Rope(s);
         r.PrintRope(5);
-        
-        r.Insert("YIPPE", 5);
+
+        //TEST INSERT
+        Console.WriteLine("\n\n\nInsert test:");
+        r.Insert("INSERT", 24);
+        Console.WriteLine(r.ToString() + "");
         r.PrintRope(5);
-        Console.WriteLine(r.ToString() + " ");
+
+        //TEST SUBSTRING
+        Console.WriteLine("\n\n\nSubstring test:\n");
+        Console.WriteLine("Substring at (1,1): " + r.Substring(1,1) + "\n");
+        Console.WriteLine("Substring from 0 to full length: " + r.Substring(0, r.Length()-1) + "\n");
+        Console.WriteLine("Substring at (5,15): " + r.Substring(5, 15) + "\n");
+
+        //TEST FIND,INDEXOF,CHARAT
+        Console.WriteLine("\n\n\nFind test (Find, IndexOf, CharAt:");
+        Console.WriteLine("Find start of 0123456789: " + r.Find("0123456789") + "\n");
+        Console.WriteLine("Find start of DNE: " + r.Find("DNE") + "\n");
+        Console.WriteLine("Find start of 01234test56789: " + r.Find("01234test56789") + "\n\n");
+        Console.WriteLine("Find index of a: " + r.IndexOf('a') + "\n");
+        Console.WriteLine("Find index of z: " + r.IndexOf('z') + "\n");
+        Console.WriteLine("Find index of D: " + r.IndexOf('D') + "\n\n");
+        Console.WriteLine("Find char at 5: " + r.CharAt(5) + "\n");
+
+
+        //TEST DELETE
+        Console.WriteLine("\n\n\nDelete test: ");
+        Console.WriteLine("Deleting from (5,15) and last index ");
+        r.Delete(5,15);
+        r.Delete(r.Length() - 1, r.Length() - 1);
+        r.PrintRope(5);
+
+
+        //TEST REVERSE
+        Console.WriteLine("\n\n\nReverse test: ");
+        Console.WriteLine(r.ToString());
         r.Reverse();
         r.PrintRope(5);
-        Console.WriteLine(r.ToString() + " " + r.IndexOf('d') + " " + r.CharAt(15) + " " + r.Length());
-        //Console.WriteLine(r.Find("0zyxwvutsrqponmlkjihgfedcba_0zyxwvutsrqponmlkjihgfedcba"));
+        Console.WriteLine(r.ToString());
 
+        //NOTE: Since no tree has had a depth difference of larger than 2, Rebalance is working as intended
+        //      Also by having Insert and Delete fully functional, SPlit and Concatenate also pass testing
+
+        //NOTE: Passing an index outside the rope will lead to an out of bounds exception
     }
 }
 
@@ -58,11 +96,16 @@ public class Rope
     // Insert string S at index i
     public void Insert(string s, int i)
     {
-        Node addedSegment = Build(s, 0, s.Length - 1);
-        this.PrintRope(5);
-        Node endSegment = Split(root, i);
-        Node startSegment = Concatenate(root, addedSegment);
-        root = Concatenate(startSegment, endSegment);
+        if (i > root.length || i < 0)
+        {
+            throw new IndexOutOfRangeException("Index out of bounds");
+        }
+        //Note: Current root is the front of the rope
+        Rope addedRope = new Rope(s);
+        Node backRope = Split(root, i - 1);
+        root = Concatenate(root, addedRope.root);
+        root = Concatenate(root, backRope);
+        root = Rebalance();
 
     }
 
@@ -74,10 +117,26 @@ public class Rope
     //Delete the substring S[i, j]
     public void Delete(int i, int j)
     {
-        Node deletedSegment = Split(root, i);
-        this.PrintRope(5);
-        Node endSegment = Split(deletedSegment, j);
-        root = Concatenate(root, endSegment);
+        if ((i > root.length || i < 0) || (j > root.length || j < 0))
+        {
+            throw new IndexOutOfRangeException("Index out of bounds");
+        }
+        //Isolate segemnt to delete and simply rebuild rope without segement to delete
+        // Rebalance rope too
+        Node endRope = Split(root, j+1);
+        Node deletedRope = Split(root, i);
+
+        //Special Case: Requesting substring where end is located on the rightmost node
+        if (endRope.left != null && endRope.right != null)
+        {
+            if (endRope.left.s.Length > 0 && endRope.right.length == 0)
+            {
+                endRope = endRope.left;
+            }
+        }
+        root = Concatenate(root, endRope);
+        root = Rebalance();
+
     }
 
 
@@ -88,7 +147,42 @@ public class Rope
     //Return the substring S[i, j]
     public string Substring(int i, int j)
     {
-        return null;
+        if ((i > root.length || i < 0) || (j > root.length || j < 0))
+        {
+            throw new IndexOutOfRangeException("Index out of bounds");
+        }
+        string s = "";
+
+
+        // Split rope twice to bring out middle segemnet where string is located
+        Node endRope = Split(root, j + 1);
+        Node middleRope = Split(root, i);
+
+        // Assign root to a temporary pointer and use the 
+        // substring located segment as the root so toString can be called to it and assigned
+        Node temp = root;
+        root = middleRope;
+        s = this.ToString();
+
+
+        //Special Case: Requesting substring where end is located on the rightmost node
+        if (endRope.left != null && endRope.right != null)
+        {
+            if (endRope.left.s.Length > 0 && endRope.right.length == 0)
+            {
+                endRope = endRope.left;
+            }
+        }
+
+
+
+        // Rebuild original rope and rebalance
+        root = temp;
+        root = Concatenate(root, middleRope);
+        root = Concatenate(root, endRope);
+        root = Rebalance();
+        return s;
+
     }
 
 
@@ -124,15 +218,20 @@ public class Rope
                     if (root.s.Contains(s[0]))
                     {
                         int j = 0;
+                        // If first char is found update return value
                         if (buffer.Length == 0)
                             i = root.s.IndexOf(s[0]) + ropeIndex;
+
+                        // Go through string inside node and match with provided string to see if each char matches
                         for (j = root.s.IndexOf(s[0]); j < root.s.Length && strIndex < s.Length; j++)
                         {
+                            // COntinue building buffer if it matches substring
                             if (root.s[j] == s[strIndex])
                             {
                                 buffer += s[strIndex];
                                 strIndex++;
                             }
+                            // Reset Buffer and index traacker if it no longer matches substring
                             else
                             {
                                 found = false;
@@ -140,12 +239,11 @@ public class Rope
                                 strIndex = 0;
                                 i = -1;
                             }
-                            //Console.WriteLine("Buffer: " + buffer);
 
                         }
+
                         s = s.Substring(strIndex);
                         strIndex = 0;
-                        // Console.WriteLine(s + " " + root.s);
 
                         if (s.Length == 0)
                             found = true;
@@ -160,7 +258,6 @@ public class Rope
                     Find(root.right, ref s);
             }
         }
-        //Console.WriteLine(buffer);
         return i;
     }
 
@@ -194,12 +291,12 @@ public class Rope
         {
 
             //Case 1: No children (leaf node)
-            if (root.left == null && root.right == null)
+            if (root.s.Length > 0)
             {
                 c = root.s[i];
             }
 
-            //Case 2: Two children
+            //Case 2: Two childrenm Traverse left or right and update index if going right
             else
             {
                 if (i < root.left.length)
@@ -290,11 +387,13 @@ public class Rope
                 }
 
                 //Else reverse the 2 children
+                // and recursively call its children
                 else
                 {
                     Node temp = root.left;
                     root.left = root.right;
                     root.right = temp;
+
                     root.left = Reverse(root.left);
                     root.right = Reverse(root.right);
                 }
@@ -327,6 +426,8 @@ public class Rope
         string ret = "";
         ToString(root);
 
+        // Goes to every node and concatenates its string
+        // Internal nodes will concatenate the empty string (defaukt value)
         void ToString(Node root)
         {
             if (root != null)
@@ -358,9 +459,10 @@ public class Rope
     {
         if (root != null)
         {
+            // Print out contents of nonempty roots, internal nodes only print out the cumulative length
+            // as the their default is the empty string
             PrintRope(root.right, indent + 3);
             Console.WriteLine(new String(' ', indent) + root.s + " " + root.length);
-
             PrintRope(root.left, indent + 3);
         }
 
@@ -443,10 +545,14 @@ public class Rope
 
 
         //Create a new node with p and q as its children and calculate length
-        newRoot.left = p;
-        newRoot.right = q;
-        newRoot.length = p.length + q.length;
-        newRoot.s = "";
+        if (q.length != 0)
+        {
+            newRoot.left = p;
+            newRoot.right = q;
+            newRoot.length = p.length + q.length;
+            newRoot.s = "";
+        }
+        else newRoot = p;
 
 
         return newRoot;
@@ -461,23 +567,13 @@ public class Rope
 
     private Node Split(Node p, int i)
     {
-        int n = i;
-        bool isRooted = false;
         Node q = new Node();
         q.length = 0;
         if (p != null)
         {
-            Console.WriteLine("start");
-            p.length = p.length - i;
             Split(p, i);
-
-
-            //p = Adjust(p);
-
-
-
         }
-
+        return q;
         void Split(Node p, int i)
         {
             if (p != null)
@@ -485,27 +581,28 @@ public class Rope
                 // Case 1: Internal Node
                 if (p.left != null && p.right != null)
                 {
-                    Console.WriteLine(i);
+                    // Case where index is on the left side of the tree
                     if (i < p.left.length)
                     {
+                        // Add right node to split tree and set right side of root to empty
                         q = Concatenate(p.right, q);
                         p.right = null;
 
-
-
-                        // Re-adjust New tree if necc
-                        if (q.length == q.left.length && q.right.length == 0)
-                        {
-                            q.length = q.left.length;
-                            q = q.left;
+                        // Re-adjust New tree if necessary
+                        if (q.left != null &&q.right != null) {
+                            if (q.length == q.left.length && q.right.length == 0)
+                            {
+                                q.length = q.left.length;
+                                q = q.left;
+                            }
+                            else if (q.length == q.right.length && q.left.length == 0)
+                            {
+                                q.length = q.right.length;
+                                q = q.right;
+                            }
                         }
-                        else if (q.length == q.right.length && q.left.length == 0)
-                        {
-                            q.length = q.right.length;
-                            q = q.right;
-                        }
-                        p.length = p.left.length;
 
+                        //Adjust root on way back up
 
                         Split(p.left, i);
 
@@ -514,42 +611,20 @@ public class Rope
                     //Traverse down right side and reduce index when going down
                     else
                     {
-
                         Split(p.right, i - p.left.length);
-
                     }
-
 
                     //Adjust root on way back up
-                    if (p.right == null && p.left != null)
-                    {
-                        p.length = p.left.length;
-                        p.right = p.left.right;
-                        p.left = p.left.left;
-
-                    }
-
-
-                    else if (p.left == null && p.right != null)
-                    {
-                        p.length = p.right.length;
-                        p.left = p.right.left;
-                        p.right = p.right.right;
-                    }
-
-
-                    else if (p.left != null && p.right != null)
-                    {
-                        
-                            p.length = p.left.length + p.right.length;
-                    }
-
-
+                    // Compressing Nodes with only 1 child and updating lengths
+                    AdjustRoot(p);
 
                 }
                 //Case 2: Leaf Node
                 else
                 {
+                    // Create a new node
+                    // Split string at leaf node and place right most part in the new node
+                    // Concatenate new node to split tree
                     Node tempNode = new Node();
                     string tempS = p.s.Substring(i);
                     p.s = p.s.Remove(i);
@@ -558,6 +633,7 @@ public class Rope
                     tempNode.length = tempS.Length;
                     q = Concatenate(tempNode, q);
                 }
+
             }
 
 
@@ -565,61 +641,155 @@ public class Rope
 
         }
 
-        return q;
+
+
+
+        void AdjustRoot(Node p)
+        {
+
+            // Case 1: Empty left and Non-Empty right
+            if (p.right == null && p.left != null)
+            {
+
+                p.length = p.left.length;
+                p.s = p.left.s;
+                p.right = p.left.right;
+                p.left = p.left.left;
+
+
+            }
+            // Case 2: Empty right and Non-Empty Left
+            else if (p.left == null && p.right != null)
+            {
+
+                p.length = p.right.length;
+                p.s = p.right.s;
+                p.left = p.right.left;
+                p.right = p.right.right;
+
+            }
+            // Case 3: Both Non Empty children
+            else if (p.left != null && p.right != null)
+            {
+                p.length = p.left.length + p.right.length;
+
+
+            }
+            //Case 4: Both empty children
+            //        Do nothing
+        }
+
+
+
     }
 
-
-
-
-
-
-    //
-    //private Node Split(Node p, int i)
-    //    {
-    //        Node newRoot = p;
-    //        Node q = newRoot;
-    //        Console.WriteLine(i);
-
-
-    //        //Case 1: Internal Node
-    //        if (p.left != null && p.right != null)
-    //        {
-    //            if (i < p.left.length)
-    //            {
-    //                newRoot = Concatenate(p.right, newRoot);
-    //                //newRoot = p.right;
-    //                p.right = null;
-    //                p.length = p.left.length;
-    //                newRoot = Split(p.left, i);
-
-
-    //            }
-    //            else { 
-    //                newRoot = Split(p.right, i - p.left.length);
-    //            }
-
-    //        }
-    //        //Case 2: Leaf Node
-    //        else
-    //        {
-
-    //            Node tempNode = new Node();
-    //            string tempS = p.s.Substring(i);
-    //            p.s.Remove(i);
-    //            p.length = p.s.Length;
-    //            tempNode.s = tempS;
-    //            tempNode.length = tempS.Length;
-    //            newRoot = Concatenate(tempNode, newRoot);
-    //        }
-
-    //        return newRoot;
 
 
 
     // Rebalance the rope using the algorithm found on pages 1319-1320 of Boehm et al.
     private Node Rebalance()
     {
-        return null;
+        Node p = root;
+        Node[] fibInterval = new Node[50];
+        Rebalance(p);
+
+        //After adding all the leaf nodes, go through the array jo
+        p = null;
+        for (int i = 0; i < fibInterval.Length; i++)
+        {
+            if (fibInterval[i] != null)
+            {
+                if (p == null)
+                    p = fibInterval[i];
+                else
+                    p = Concatenate(fibInterval[i], p);
+            }
+        }
+        Compress(p);
+        return p;
+
+        //Perform a left to right traversal of the tree 
+        // So that
+        void Rebalance(Node p)
+        {
+            if (p != null)
+            {
+                //Case 1: Leaf Node, Add it to Fibonacci Interval Array
+                if (p.s.Length > 0)
+                {
+                    FibInsert(p.s.Length, p);
+                }
+                // Case 2: Internal Node
+                else
+                {
+
+                    Rebalance(p.left);
+
+                    Rebalance(p.right);
+
+                }
+            }
+        }
+
+
+
+        Node FibInsert(int l, Node p)
+        {
+            int fib0 = 1, fib1 = 2, fib = 0, i = 0;
+            //Goes through array concateneting and existing trees along the way
+            while (p.length > fib)
+            {
+                fib = fib0 + fib1; // Fn = Fn-1 + Fn-2
+                fib1 = fib0;        // Fn-2 = Fn-1
+                fib0 = fib;        // Fn-1 = Fn
+                i++;
+                // Concatenate if tree is not empty
+                if (fibInterval[i] != null)
+                {
+                    // Concatenate any existing nodes up to the fibonacci index
+                    p = Concatenate(fibInterval[i], p);
+                    fibInterval[i] = null;
+                }
+
+            }
+            //Update spot with tree
+            fibInterval[i] = p;
+            return (p);
+        }
+
+        //Supporting method to go through the rebalanced tree and compress if possible
+        void Compress(Node p)
+        {
+            if (p != null)
+            {
+                //Recursively call Compress
+                Compress(p.left);
+                Compress(p.right);
+
+                // Compress if needed if both children are nonempty
+                if (p.left != null && p.right != null)
+                {
+                    //If child string can be added to be as smaller as the maximum length, compress
+                    // Note that it asks for combining total lengths if less than 5 but I believe it would be better to compress
+                    // as much as possible up to the max string length
+                    // TO change condition to 5 swap MAX_SUBSTRING_LENGTH to 5
+                    if (p.left.s.Length + p.right.s.Length <= MAX_SUBSTRING_LENGTH && p.left.s.Length > 0 && p.right.s.Length > 0)
+                    {
+                        p.s = p.left.s + p.right.s;
+                        p.left = null;
+                        p.right = null;
+                    }
+                }
+            }
+        }
+
+
+
+
+
+
+
+
     }
 
 
